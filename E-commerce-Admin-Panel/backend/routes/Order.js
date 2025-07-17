@@ -172,7 +172,7 @@ router.get('/all', async (req, res) => {
 
     // Fetch orders with pagination and filtering
     const rawOrders = await Order.find(queryFilter)
-      .sort({ createdAt: -1 })
+      .sort({ orderDate: -1 })
       .skip(skip)
       .limit(limit);
 

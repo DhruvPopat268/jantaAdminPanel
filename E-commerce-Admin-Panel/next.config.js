@@ -1,8 +1,8 @@
+// next.config.js (or next.config.mjs if you're using .mjs)
 import withPWA from 'next-pwa';
 
 /** @type {import('next').NextConfig} */
-const nextConfig = withPWA({
-  // ✅ move experimental outside of here
+const baseConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -18,12 +18,15 @@ const nextConfig = withPWA({
     skipWaiting: true,
     disable: process.env.NODE_ENV === 'development',
   },
-});
+};
 
-// ✅ Now add experimental outside the wrapper
+// Apply the PWA wrapper
+const nextConfig = withPWA(baseConfig);
+
+// Add experimental config **after** wrapping
 export default {
   ...nextConfig,
   experimental: {
-    middlewarePrefetch: true,
+    middlewarePrefetch: 'flexible', // ✅ must be "flexible" or "strict", not `true`
   },
 };
