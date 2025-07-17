@@ -29,6 +29,10 @@ interface Banner {
   createdAt: string;
 }
 
+interface Category {
+  _id: string;
+  name: string;
+}
 
 interface Subcategory {
   _id: string; // Fixed: using _id instead of id
@@ -53,7 +57,6 @@ const OverlayLoader = () => (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
     <div className="bg-white p-6 rounded-lg flex flex-col items-center gap-4">
       <LoadingSpinner />
-    
     </div>
   </div>
 );
@@ -61,7 +64,6 @@ const OverlayLoader = () => (
 export default function BannersPage() {
   const [isMounted, setIsMounted] = useState(false)
   const [banners, setBanners] = useState<Banner[]>([])
- 
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
   const [editId, setEditId] = useState<string | null>(null);
   
@@ -71,13 +73,13 @@ export default function BannersPage() {
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null); // Track which banner is being deleted
   const [toggleLoading, setToggleLoading] = useState<string | null>(null); // Track which banner status is being toggled
 
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
-
+  // Fixed formData state - added categoryId
   const [formData, setFormData] = useState({
     title: "",
     type: "",
-
+    categoryId: "", // Added this field
     subcategoryId: "",
     image: null as File | null,
   })
@@ -92,14 +94,11 @@ export default function BannersPage() {
         // Fetch all data in parallel
         const [bannersRes, subcategoriesRes] = await Promise.all([
           axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners`),
-         
           axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
         ]);
 
         console.log("banners are", bannersRes.data);
         setBanners(bannersRes.data);
-
-   
 
         const resdata = subcategoriesRes.data[0]?.data;
         console.log('subcategories', resdata);
@@ -152,262 +151,257 @@ export default function BannersPage() {
     }
   }
 
-// Fixed handleSubmit function
-// Fixed handleSubmit function
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  // Fixed handleSubmit function
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  if (!formData.title || !formData.type) {
-    alert("Please fill all required fields");
-    return;
-  }
+    if (!formData.title || !formData.type) {
+      alert("Please fill all required fields");
+      return;
+    }
 
-  if (formData.type === "Category" && !formData.categoryId) {
-    alert("Please select a category");
-    return;
-  }
+    // Since you're only using Subcategory type, remove Category validation
+    if (formData.type === "Subcategory" && !formData.subcategoryId) {
+      alert("Please select a subcategory");
+      return;
+    }
 
-  if (formData.type === "Subcategory" && !formData.subcategoryId) {
-    alert("Please select a subcategory");
-    return;
-  }
+    // For new banners, image is required
+    if (!editId && !formData.image) {
+      alert("Please select an image");
+      return;
+    }
 
-  // For new banners, image is required
-  if (!editId && !formData.image) {
-    alert("Please select an image");
-    return;
-  }
+    setSubmitLoading(true);
+    
+    try {
+      let response;
 
-  setSubmitLoading(true);
-  
-  try {
-    let response;
+      if (editId) {
+        // Edit (PUT request) - Use FormData for file uploads
+        const postData = new FormData();
+        postData.append("title", formData.title);
+        postData.append("type", formData.type);
+        
+        if (formData.categoryId) {
+          postData.append("categoryId", formData.categoryId);
+        }
+        
+        if (formData.subcategoryId) {
+          postData.append("subcategoryId", formData.subcategoryId);
+        }
+        
+        if (formData.image) {
+          postData.append("image", formData.image);
+        }
 
-    if (editId) {
-      // Edit (PUT request) - Use FormData for file uploads
-      const postData = new FormData();
-      postData.append("title", formData.title);
-      postData.append("type", formData.type);
-      
-      if (formData.categoryId) {
-        postData.append("categoryId", formData.categoryId);
+        console.log("Updating banner with ID:", editId);
+        console.log("Form data being sent:", {
+          title: formData.title,
+          type: formData.type,
+          categoryId: formData.categoryId,
+          subcategoryId: formData.subcategoryId,
+          hasImage: !!formData.image
+        });
+
+        response = await axios.put(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/banners/${editId}`, 
+          postData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+
+        console.log("Update response:", response.data);
+
+        // Check if response.data has _id (indicating it's the updated banner object)
+        if (response.data && response.data._id) {
+          // Update the banners state with the returned banner data
+          setBanners((prev) =>
+            prev.map((banner) =>
+              banner._id === editId ? response.data : banner
+            )
+          );
+          alert("Banner updated successfully!");
+          
+          // Reset form after successful update
+          setFormData({
+            title: "",
+            type: "",
+            categoryId: "",
+            subcategoryId: "",
+            image: null,
+          });
+          setImagePreview("");
+          setEditId(null);
+
+          const fileInput = document.getElementById("banner-image") as HTMLInputElement;
+          if (fileInput) fileInput.value = "";
+          
+        } else if (response.data && response.data.success) {
+          // Handle wrapped response format
+          setBanners((prev) =>
+            prev.map((banner) =>
+              banner._id === editId ? response.data.data : banner
+            )
+          );
+          alert("Banner updated successfully!");
+          
+          // Reset form after successful update
+          setFormData({
+            title: "",
+            type: "",
+            categoryId: "",
+            subcategoryId: "",
+            image: null,
+          });
+          setImagePreview("");
+          setEditId(null);
+
+          const fileInput = document.getElementById("banner-image") as HTMLInputElement;
+          if (fileInput) fileInput.value = "";
+          
+        } else {
+          console.error("Update failed:", response.data);
+          alert(response.data?.error || response.data?.message || "Failed to update banner");
+        }
+      } else {
+        // Create (POST request)
+        const postData = new FormData();
+        postData.append("title", formData.title);
+        postData.append("type", formData.type);
+        
+        if (formData.categoryId) {
+          postData.append("categoryId", formData.categoryId);
+        }
+        
+        if (formData.subcategoryId) {
+          postData.append("subcategoryId", formData.subcategoryId);
+        }
+        
+        if (formData.image) {
+          postData.append("image", formData.image);
+        }
+
+        response = await axios.post(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/banners`, 
+          postData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+
+        if (response.data && response.data.success) {
+          setBanners((prev) => [response.data.data, ...prev]);
+          toast.success("Banner created successfully!");
+          
+          // Reset form after successful creation
+          setFormData({
+            title: "",
+            type: "",
+            categoryId: "",
+            subcategoryId: "",
+            image: null,
+          });
+          setImagePreview("");
+
+          const fileInput = document.getElementById("banner-image") as HTMLInputElement;
+          if (fileInput) fileInput.value = "";
+          
+        } else {
+          toast.error(response.data?.error || response.data?.message || "Failed to create banner");
+        }
       }
-      
-      if (formData.subcategoryId) {
-        postData.append("subcategoryId", formData.subcategoryId);
-      }
-      
-      if (formData.image) {
-        postData.append("image", formData.image);
-      }
 
-      console.log("Updating banner with ID:", editId);
-      console.log("Form data being sent:", {
-        title: formData.title,
-        type: formData.type,
-        categoryId: formData.categoryId,
-        subcategoryId: formData.subcategoryId,
-        hasImage: !!formData.image
+    } catch (error: any) {
+      console.error("❌ Error submitting banner:", error);
+      console.error("Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
       });
-
-      response = await axios.put(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/banners/${editId}`, 
-        postData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      console.log("Update response:", response.data);
-
-      // Check if response.data has _id (indicating it's the updated banner object)
-      if (response.data && response.data._id) {
-        // Update the banners state with the returned banner data
-        setBanners((prev) =>
-          prev.map((banner) =>
-            banner._id === editId ? response.data : banner
-          )
-        );
-        alert("Banner updated successfully!");
-        
-        // Reset form after successful update
-        setFormData({
-          title: "",
-          type: "",
-          categoryId: "",
-          subcategoryId: "",
-          image: null,
-        });
-        setImagePreview("");
-        setEditId(null);
-
-        const fileInput = document.getElementById("banner-image") as HTMLInputElement;
-        if (fileInput) fileInput.value = "";
-        
-      } else if (response.data && response.data.success) {
-        // Handle wrapped response format
-        setBanners((prev) =>
-          prev.map((banner) =>
-            banner._id === editId ? response.data.data : banner
-          )
-        );
-        alert("Banner updated successfully!");
-        
-        // Reset form after successful update
-        setFormData({
-          title: "",
-          type: "",
-          categoryId: "",
-          subcategoryId: "",
-          image: null,
-        });
-        setImagePreview("");
-        setEditId(null);
-
-        const fileInput = document.getElementById("banner-image") as HTMLInputElement;
-        if (fileInput) fileInput.value = "";
-        
-      } else {
-        console.error("Update failed:", response.data);
-        alert(response.data?.error || response.data?.message || "Failed to update banner");
-      }
-    } else {
-      // Create (POST request)
-      const postData = new FormData();
-      postData.append("title", formData.title);
-      postData.append("type", formData.type);
       
-      if (formData.categoryId) {
-        postData.append("categoryId", formData.categoryId);
-      }
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          "Failed to submit banner";
       
-      if (formData.subcategoryId) {
-        postData.append("subcategoryId", formData.subcategoryId);
-      }
-      
-      if (formData.image) {
-        postData.append("image", formData.image);
-      }
-
-      response = await axios.post(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/banners`, 
-        postData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      if (response.data && response.data.success) {
-        setBanners((prev) => [response.data.data, ...prev]);
-        toast.success("Banner created successfully!");
-        
-        // Reset form after successful creation
-        setFormData({
-          title: "",
-          type: "",
-          categoryId: "",
-          subcategoryId: "",
-          image: null,
-        });
-        setImagePreview("");
-
-        const fileInput = document.getElementById("banner-image") as HTMLInputElement;
-        if (fileInput) fileInput.value = "";
-        
-      } else {
-        toast.error(response.data?.error || response.data?.message || "Failed to create banner");
-      }
+      alert(`Error: ${errorMessage}`);
+    } finally {
+      setSubmitLoading(false);
     }
-
-  } catch (error: any) {
-    console.error("❌ Error submitting banner:", error);
-    console.error("Error details:", {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    });
-    
-    const errorMessage = error.response?.data?.error || 
-                        error.response?.data?.message || 
-                        error.message || 
-                        "Failed to submit banner";
-    
-    alert(`Error: ${errorMessage}`);
-  } finally {
-    setSubmitLoading(false);
-  }
-};
-
-// Fixed handleEdit function to properly handle the data structure
-const handleEdit = (banner: Banner) => {
-  console.log("Editing banner:", banner);
-  
-  setEditId(banner._id);
-  
-  // Helper function to extract ID from object or return string ID
-  const extractId = (value: any): string => {
-    if (!value) return "";
-    if (typeof value === 'object' && value._id) {
-      return String(value._id);
-    }
-    return String(value);
   };
 
-  // Extract the correct IDs based on the data structure
-  let categoryId = "";
-  let subcategoryId = "";
-  
-  if (banner.type === "Category") {
-    categoryId = extractId(banner.categoryId);
-  } else if (banner.type === "Subcategory") {
-    subcategoryId = extractId(banner.subcategoryId);
-  }
+  // Fixed handleEdit function to properly handle the data structure
+  const handleEdit = (banner: Banner) => {
+    console.log("Editing banner:", banner);
+    
+    setEditId(banner._id);
+    
+    // Helper function to extract ID from object or return string ID
+    const extractId = (value: any): string => {
+      if (!value) return "";
+      if (typeof value === 'object' && value._id) {
+        return String(value._id);
+      }
+      return String(value);
+    };
 
-  setFormData({
-    title: banner.title || "",
-    type: banner.type || "",
-    categoryId: categoryId,
-    subcategoryId: subcategoryId,
-    image: null, // Don't set the existing image file
-  });
-  
-  // Set the image preview to show the existing image
-  setImagePreview(banner.image);
-  
-  console.log("Edit form data set:", {
-    title: banner.title,
-    type: banner.type,
-    categoryId: categoryId,
-    subcategoryId: subcategoryId,
-    imagePreview: banner.image
-  });
-};
+    // Extract the correct IDs based on the data structure
+    let categoryId = "";
+    let subcategoryId = "";
+    
+    if (banner.type === "Category") {
+      categoryId = extractId(banner.categoryId);
+    } else if (banner.type === "Subcategory") {
+      subcategoryId = extractId(banner.subcategoryId);
+    }
 
-// Also update the getCategorySubcategoryName function to handle the data structure better
-const getCategorySubcategoryName = (banner: Banner) => {
-  if (banner.type === "Category") {
-    // Handle both populated object and ID cases
-    if (typeof banner.categoryId === 'object' && banner.categoryId?.name) {
-      return banner.categoryId.name;
+    setFormData({
+      title: banner.title || "",
+      type: banner.type || "",
+      categoryId: categoryId,
+      subcategoryId: subcategoryId,
+      image: null, // Don't set the existing image file
+    });
+    
+    // Set the image preview to show the existing image
+    setImagePreview(banner.image);
+    
+    console.log("Edit form data set:", {
+      title: banner.title,
+      type: banner.type,
+      categoryId: categoryId,
+      subcategoryId: subcategoryId,
+      imagePreview: banner.image
+    });
+  };
+
+  // Also update the getCategorySubcategoryName function to handle the data structure better
+  const getCategorySubcategoryName = (banner: Banner) => {
+    if (banner.type === "Category") {
+      // Handle both populated object and ID cases
+      if (typeof banner.categoryId === 'object' && banner.categoryId?.name) {
+        return banner.categoryId.name;
+      }
+      // If it's just an ID, find the name from categories array
+      const category = categories.find(cat => cat._id === String(banner.categoryId));
+      return category?.name || 'Unknown Category';
+    } else if (banner.type === "Subcategory") {
+      // Handle subcategory
+      if (typeof banner.subcategoryId === 'object' && banner.subcategoryId?.name) {
+        return banner.subcategoryId.name;
+      }
+      // If it's just an ID, find the name from subcategories array
+      const subcategory = subcategories.find(sub => sub._id === String(banner.subcategoryId));
+      return subcategory?.name || 'Unknown Subcategory';
     }
-    // If it's just an ID, find the name from categories array
-    const category = categories.find(cat => cat._id === String(banner.categoryId));
-    return category?.name || 'Unknown Category';
-  } else if (banner.type === "Subcategory") {
-    // Handle subcategory
-    if (typeof banner.subcategoryId === 'object' && banner.subcategoryId?.name) {
-      return banner.subcategoryId.name;
-    }
-    // If it's just an ID, find the name from subcategories array
-    const subcategory = subcategories.find(sub => sub._id === String(banner.subcategoryId));
-    return subcategory?.name || 'Unknown Subcategory';
-  }
-  return 'Unknown';
-};
+    return 'Unknown';
+  };
 
   const handleReset = () => {
     setFormData({
@@ -521,10 +515,6 @@ const getCategorySubcategoryName = (banner: Banner) => {
       banner._id.toString().includes(searchTerm)
   )
 
-
-
-
-
   // Show initial loading spinner
   if (initialLoading) {
     return <FullPageLoader />;
@@ -571,13 +561,11 @@ const getCategorySubcategoryName = (banner: Banner) => {
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                  
                     <SelectItem value="Subcategory">Subcategory</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-        
               {formData.type === "Subcategory" && (
                 <div>
                   <Label htmlFor="subcategory">
