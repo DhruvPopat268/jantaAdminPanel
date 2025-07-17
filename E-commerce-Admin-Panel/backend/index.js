@@ -49,7 +49,7 @@ app.use(cors({
   origin: [
     "http://localhost:3000",
     "http://localhost:3001",
-    "https://e-commerce-admin-panel-eight-sigma.vercel.app"
+    "https://janta-admin-panel.vercel.app"
   ],
   credentials: true
 }));
