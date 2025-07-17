@@ -71,6 +71,9 @@ export default function BannersPage() {
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null); // Track which banner is being deleted
   const [toggleLoading, setToggleLoading] = useState<string | null>(null); // Track which banner status is being toggled
 
+  const [categories, setCategories] = useState([]);
+
+
   const [formData, setFormData] = useState({
     title: "",
     type: "",
