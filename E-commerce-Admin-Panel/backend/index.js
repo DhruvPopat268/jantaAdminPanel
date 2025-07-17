@@ -31,7 +31,7 @@ const io = new Server(server, {
   cors: {
     origin: [
       "http://localhost:3000",
-      "https://e-commerce-admin-panel-eight-sigma.vercel.app"
+      "https://janta-admin-panel.vercel.app"
     ],
     methods: ["GET", "POST"],
     credentials: true
