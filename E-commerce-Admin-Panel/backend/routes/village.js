@@ -315,6 +315,42 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
+// PATCH /api/villages/status
+router.patch('/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (typeof status !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'Status must be a boolean value',
+      });
+    }
+
+    const result = await Village.updateMany(
+      {}, // Empty filter => match all villages
+      {
+        status: status,
+        updatedAt: Date.now(),
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `All villages ${status ? 'activated' : 'deactivated'} successfully`,
+      modifiedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    console.error('Error updating all village statuses:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server Error',
+      error: error.message,
+    });
+  }
+});
+
+
 // DELETE - Delete village
 router.delete('/:id', async (req, res) => {
   try {

@@ -127,8 +127,6 @@ export default function PendingOrdersPage() {
     }
   }
 
-
-
   const printSingleInvoice = async (order: Order) => {
     try {
       setGeneratingInvoice(true)

@@ -54,9 +54,19 @@ export default function VillagePage() {
   }
 
 
+
   useEffect(() => {
     fetchVillages()
   }, [])
+
+  // Add this useEffect to sync master switch with villages data
+  useEffect(() => {
+    if (villages.length > 0) {
+      // Set master switch to true if ALL villages are active
+      const allActive = villages.every(village => village.status === true);
+      setIsVillageActive(allActive);
+    }
+  }, [villages]);
 
   useEffect(() => {
     setFilteredVillages(villages.filter((village) => village.name.toLowerCase().includes(searchTerm.toLowerCase())))
@@ -91,45 +101,45 @@ export default function VillagePage() {
   }
 
 
-const handleEditVillage = async () => {
-  if (!editingVillage || editingVillage.name.trim() === "") return
+  const handleEditVillage = async () => {
+    if (!editingVillage || editingVillage.name.trim() === "") return
 
-  try {
-    setLoading(true)
-    
-    // Extract English name from the display name (remove Gujarati part if present)
-    const englishName = editingVillage.name.split('(')[0].trim()
-    
-    const response = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages/${editingVillage.id}`, {
-      name: englishName, // Send only the English name
-      status: editingVillage.status,
-    })
+    try {
+      setLoading(true)
 
-    const result = response.data
+      // Extract English name from the display name (remove Gujarati part if present)
+      const englishName = editingVillage.name.split('(')[0].trim()
 
-    if (result.success) {
-      setVillages(villages.map(village =>
-        village.id === editingVillage.id ? result.data : village
-      ))
-      setEditingVillage(null)
-      setIsEditDialogOpen(false)
-      setError("")
-    } else {
-      setError(result.message || "Failed to update village")
+      const response = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages/${editingVillage.id}`, {
+        name: englishName, // Send only the English name
+        status: editingVillage.status,
+      })
+
+      const result = response.data
+
+      if (result.success) {
+        setVillages(villages.map(village =>
+          village.id === editingVillage.id ? result.data : village
+        ))
+        setEditingVillage(null)
+        setIsEditDialogOpen(false)
+        setError("")
+      } else {
+        setError(result.message || "Failed to update village")
+      }
+    } catch (error) {
+      console.error("Error updating village:", error)
+
+      // Enhanced error handling to show specific error messages
+      if (error.response?.data?.message) {
+        setError(error.response.data.message)
+      } else {
+        setError("Failed to connect to server")
+      }
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    console.error("Error updating village:", error)
-    
-    // Enhanced error handling to show specific error messages
-    if (error.response?.data?.message) {
-      setError(error.response.data.message)
-    } else {
-      setError("Failed to connect to server")
-    }
-  } finally {
-    setLoading(false)
   }
-}
 
 
   const handleToggleStatus = async (id: string) => {
@@ -180,61 +190,106 @@ const handleEditVillage = async () => {
     }
   }
 
-
   const openEditDialog = (village: Village) => {
     setEditingVillage({ ...village })
     setIsEditDialogOpen(true)
+  }
+
+  const [isVillageActive, setIsVillageActive] = useState(false);
+
+  const handleAllVillagesStatus = async () => {
+    try {
+      setLoading(true)
+      const newStatus = !isVillageActive;
+      setIsVillageActive(newStatus);
+
+      await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages/status`, { status: newStatus });
+
+      // Refetch villages to get updated statuses
+      await fetchVillages();
+
+    } catch (err) {
+      console.error(err);
+      // Rollback UI change if API fails
+      setIsVillageActive(!newStatus);
+    } finally {
+      setLoading(false)
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-[70vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Villages</h2>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button disabled={loading}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Village
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Village</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="village">Village</Label>
-                <Input
-                  id="village"
-                  placeholder="Enter village name"
-                  value={newVillage}
-                  onChange={(e) => setNewVillage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddVillage()}
-                />
+
+        <div className="flex items-center gap-4">
+          {/* Toggle Switch */}
+          <div
+            className={`w-14 h-8 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${isVillageActive ? "bg-black" : "bg-gray-300"
+              }`}
+            onClick={handleAllVillagesStatus} // ✅ make sure this is not wrapped in DialogTrigger
+          >
+            <div
+              className={`bg-white w-6 h-6 rounded-full shadow-md transform transition-transform duration-300 ${isVillageActive ? "translate-x-6" : "translate-x-0"
+                }`}
+            />
+          </div>
+
+          {/* Add Village Dialog */}
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button disabled={loading}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Village
+              </Button>
+            </DialogTrigger>
+
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Village</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="village">Village</Label>
+                  <Input
+                    id="village"
+                    placeholder="Enter village name"
+                    value={newVillage}
+                    onChange={(e) => setNewVillage(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleAddVillage()}
+                  />
+                </div>
+                {error && <div className="text-red-500 text-sm">{error}</div>}
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsAddDialogOpen(false);
+                      setNewVillage("");
+                      setError("");
+                    }}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleAddVillage} disabled={loading}>
+                    {loading ? "Adding..." : "Submit"}
+                  </Button>
+                </div>
               </div>
-              {error && (
-                <div className="text-red-500 text-sm">{error}</div>
-              )}
-              <div className="flex justify-end space-x-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsAddDialogOpen(false)
-                    setNewVillage("")
-                    setError("")
-                  }}
-                  disabled={loading}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleAddVillage} disabled={loading}>
-                  {loading ? "Adding..." : "Submit"}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
+
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
