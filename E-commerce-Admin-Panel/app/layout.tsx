@@ -5,7 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer } from 'react-toastify';
 
 export const metadata: Metadata = {
-  title: 'Zoya Traders',
+  title: 'Janta Traders',
   // description: 'Created with v0',
   // generator: 'v0.dev',
 };

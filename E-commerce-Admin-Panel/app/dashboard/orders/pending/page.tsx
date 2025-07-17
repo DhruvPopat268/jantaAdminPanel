@@ -184,7 +184,7 @@ export default function PendingOrdersPage() {
     <div class="invoice-header">
       <div class="header-content">
         <img src="${window.location.origin}/zoya_traders.png" alt="Zoya Traders Logo" class="company-logo" onerror="this.style.display='none'" />
-        <div class="company-name">Zoya Traders</div>
+        <div class="company-name">Janta Traders</div>
       </div>
       <div class="invoice-title">ESTIMATE${!isFirstPage ? ' (Continued)' : ''}</div>
       ${!isFirstPage ? `<div class="page-info">Page ${pageNumber} of ${totalPages}</div>` : ''}
