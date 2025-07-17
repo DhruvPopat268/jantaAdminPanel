@@ -1,11 +1,8 @@
-// next.config.mjs
 import withPWA from 'next-pwa';
 
 /** @type {import('next').NextConfig} */
-const baseConfig = {
-  experimental: {
-    middlewarePrefetch: true,
-  },
+const nextConfig = withPWA({
+  // ✅ move experimental outside of here
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -15,10 +12,6 @@ const baseConfig = {
   images: {
     unoptimized: true,
   },
-};
-
-const nextConfig = withPWA({
-  ...baseConfig,
   pwa: {
     dest: 'public',
     register: true,
@@ -27,4 +20,10 @@ const nextConfig = withPWA({
   },
 });
 
-export default nextConfig;
+// ✅ Now add experimental outside the wrapper
+export default {
+  ...nextConfig,
+  experimental: {
+    middlewarePrefetch: true,
+  },
+};
